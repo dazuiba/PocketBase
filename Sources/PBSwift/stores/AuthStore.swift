@@ -13,13 +13,11 @@ typealias AuthModel = [String: Any]? // Optional dictionary
 let defaultCookieKey = "pb_auth"
 
 class AuthStore {
-    private let storageKey: String
+    private let storageKey: String = "pocketbase_auth"
     private var baseToken: String = ""
     private var baseModel: AuthModel? = nil
     private var userDefaults = UserDefaults.standard
 //    private var onChangeCallbacks: [OnStoreChangeFunc] = []
-    init(storageKey: String = "pocketbase_auth") {
-    }
 
     var token: String {
         let data = storageGet(storageKey) as? [String: Any] ?? [:]

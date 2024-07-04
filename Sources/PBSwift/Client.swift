@@ -575,7 +575,7 @@ struct BeforeSendResult {
 public class Client {
     var baseUrl: URL
     var beforeSend: ((String, SendOptions) -> BeforeSendResult?)?
-    var afterSend: ((Response, Any) -> Any)?
+    var afterSend: ((Data, URLResponse) -> Any)?
     var lang = "en-US"
     var authStore: AuthStore
     // var settings: SettingsService
@@ -629,7 +629,7 @@ public class Client {
     }
  */
 
-    func send<T: Decodable>(_ path: String, _ options: SendOptions) async throws -> T {
+    func send(_ path: String, _ options: SendOptions) async throws -> (Data,URLResponse) {
         let request = try options.buildRequest(forURL:self.baseUrl.appendingPathComponent(path))
         do {
             let (data, response) = try await RequestUtil.shared.fetch(request)
@@ -640,9 +640,7 @@ public class Client {
             if httpResponse.statusCode >= 400 {
                 throw ClientResponseError(request: request, status: httpResponse.statusCode)//, data: data
             }
-
-            let decodedData = try JSONDecoder().decode(T.self, from: data)
-            return decodedData
+            return (data, response)
         } catch {
             throw ClientResponseError(request: request)
         }

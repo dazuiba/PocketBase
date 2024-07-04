@@ -1,5 +1,5 @@
 import Foundation
-import PBSwift
+@testable import PBSwift
 
 
 enum ReplyBody {
@@ -17,7 +17,7 @@ enum ReplyBody {
     }
 }
 struct RequestMock {
-    var method: String?
+    var method = HTTPMethod.GET
     var url: String?
     var body: [String: Any]?
     var additionalMatcher: ((URLRequest) -> Bool)?
@@ -51,7 +51,7 @@ class FetchMock {
         RequestUtil.shared.setFetch({ request in
             for mock in self.mocks {
                 // match url and method
-                guard let url = request.url, url.absoluteString == mock.url, request.httpMethod == mock.method else {
+                guard let url = request.url, url.absoluteString == mock.url, request.httpMethod == mock.method.rawValue else {
                     continue
                 }
 

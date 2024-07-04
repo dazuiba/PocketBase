@@ -1079,15 +1079,6 @@ struct RecordSubscription<T: RecordModel> {
     var record: T
 }
 
-typealias OAuth2UrlCallback = (String) -> Void
-
-struct OAuth2AuthConfig: SendOptions {
-    var provider: String
-    var scopes: [String]?
-    var createData: [String: Any]?
-    var urlCallback: OAuth2UrlCallback?
-    var query: RecordOptions?
-}
 
 class RecordService<M: RecordModel>: CrudService<M> {
     var collectionIdOrName: String

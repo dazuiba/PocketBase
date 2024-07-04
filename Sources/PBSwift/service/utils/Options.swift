@@ -149,21 +149,12 @@ export function normalizeUnknownQueryParams(options?: SendOptions): void {
 // Swift code:
 import Foundation
 
-struct Response {
-    
-}
-
-struct RequestInfo {
-    
-}
-protocol RequestInit {
-
-}
-enum HTTPMethod: String {
-  case GET = "GET"
-  case POST = "POST"
-  case PATCH = "PATCH"
-  case DELETE = "DELETE"
+public enum HTTPMethod: String {
+    case GET = "GET"
+    case POST = "POST"
+    case PUT = "PUT"
+    case PATCH = "PATCH"
+    case DELETE = "DELETE"
 }
 
 enum HeaderKey : String {
@@ -185,54 +176,58 @@ extension URLComponents {
         }
     }
 }
+public struct FormData {
+    
+    func asData() -> Data {
+        return Data()
+    }
+    
+}
 extension URLRequest {
     mutating func processBody(_ body:Any,encoder:JSONEncoder,accpetJSON:Bool) throws {
-        if let body = body as? Data {
-            self.httpBody = body
-            return
-        }
-        if let body = body as? String {
-            if accpetJSON {
-                self.httpBody = try JSONSerialization.data(withJSONObject: body)
-            } else {
-                self.httpBody = body.data(using: .utf8)
-            }
-            return
-        }
         
-        precondition(accpetJSON)
-        if let body = body as? Encodable {
+        switch body {
+        case let body as Data:
+            self.httpBody = body
+        case let body as String:
+            self.httpBody = accpetJSON ? try JSONSerialization.data(withJSONObject: body) : body.data(using: .utf8)
+        case let body as FormData:
+            self.httpBody = body.asData()
+        case let body as Encodable:
+            precondition(accpetJSON)
             self.httpBody = try encoder.encode(body)
-        } else {
+        default:
             precondition( false )//should not reach here
         }
     }
 }
-class SendOptions: RequestInit {
-    
+
+protocol SendOptionsProtocol {
+    associatedtype QueryType
+
+    // var jsonEncoder: JSONEncoder { get set }
+    var method: HTTPMethod { get set }
+    var headers: [HeaderKey: HeaderValue] { get set }
+    var body: Any? { get set }
+    var query: QueryType? { get set } 
+}
+
+class SendOptions: SendOptionsProtocol {
+    typealias QueryType = [String: Any]
     var jsonEncoder = JSONEncoder.normal()
     
     var method = HTTPMethod.GET
-
-    /**
-     * Custom headers to send with the requests.
-     */
     var headers = [HeaderKey: HeaderValue]()
-
-    /**
-     * The body of the request (serialized automatically for json requests).
-     */
     var body: Any?
-
-    /**
-     * Query parameters that will be appended to the request url.
-     */
     var query: [String: Any]?
-
-    /**
-     * The request identifier that can be used to cancel pending requests.
-     */
     var requestKey: String?
+    
+    public static func option(_ method:HTTPMethod = .GET, body:Any? = nil) -> SendOptions {
+        let option = SendOptions()
+        option.method = method
+        option.body = body
+        return option
+    }
 
     func buildRequest(forURL:URL) throws -> URLRequest {
         // Serialize the query parameters
@@ -286,3 +281,20 @@ class FileOptions: CommonOptions {
 // class RecordListOptions: ListOptions, RecordOptions {
 
 // }
+
+typealias OAuth2UrlCallback = (String) -> Void
+
+class OAuth2AuthConfig: SendOptionsProtocol {
+    
+    var method = HTTPMethod.GET
+    var headers = [HeaderKey: HeaderValue]()
+    var body: Any?
+
+    var provider: String!
+    var scopes: [String]?
+    var createData: [String: Any]?
+    var urlCallback: OAuth2UrlCallback?
+    
+    typealias QueryType = RecordOptions
+    var query: RecordOptions?
+}

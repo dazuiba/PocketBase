@@ -18,6 +18,8 @@ let package = Package(
           url: "https://github.com/Flight-School/AnyCodable",
           from: "0.6.0"
       ),
+      .package(url: "https://github.com/Quick/Quick.git", from: "7.0.0"),
+      .package(url: "https://github.com/Quick/Nimble.git", from: "12.0.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -26,6 +28,6 @@ let package = Package(
             name: "PBSwift",dependencies:["AnyCodable"]),
         .testTarget(
             name: "PBSwiftTests",
-            dependencies: ["PBSwift"]),
+            dependencies: ["PBSwift","Quick","Nimble"]),
     ]
 )

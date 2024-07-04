@@ -282,11 +282,12 @@ protocol BaseService {
 }
 
 // 定义一个基础服务协议的扩展
-//extension BaseService {
-//    func decode<T>(_ data: [String: Any]) -> T {
-//        return data as! T
-//    }
-//}
+extension BaseService {
+    func decode<T:Decodable>(_ data: (Data,URLResponse)) throws -> T {
+        let decodedData = try JSONDecoder().decode(T.self, from: data.0)
+        return decodedData
+    }
+}
 
 // 定义一个基础服务类
 class CrudService<T:Codable>: BaseService {
@@ -307,7 +308,7 @@ class CrudService<T:Codable>: BaseService {
             "perPage": perPage
         ]
         
-        return  try await self.client.send(self.baseCrudPath, options)
+        return  try self.decode(await self.client.send(self.baseCrudPath, options))
     }
     // Promise 转成 async/await
     func getFirstListItem(filter: String, options: ListOptions?) async throws -> T{
@@ -333,8 +334,7 @@ class CrudService<T:Codable>: BaseService {
         }
         
         var options = options ?? CommonOptions()
-        let responseData = try await self.client.send(self.baseCrudPath + "/" + id, options)
-        return self.decode(responseData)
+        return try self.decode(await self.client.send(self.baseCrudPath + "/" + id, options))
     }
 
     func create(bodyParams: [String: Any]?, options: CommonOptions?) async throws -> T {
@@ -342,8 +342,7 @@ class CrudService<T:Codable>: BaseService {
         options.method = .POST
         options.body = bodyParams
         
-        let responseData = try await self.client.send(self.baseCrudPath, options)
-        return self.decode(responseData)
+        return try self.decode(await self.client.send(self.baseCrudPath, options))
     }
 
     func update(id: String, bodyParams: [String: Any]?, options: CommonOptions?) async throws -> T {
@@ -351,11 +350,10 @@ class CrudService<T:Codable>: BaseService {
         options.method = .PATCH
         options.body = bodyParams
         
-        let responseData = try await self.client.send(self.baseCrudPath + "/" + id, options)
-        return self.decode(responseData)
+        return try self.decode(await self.client.send(self.baseCrudPath + "/" + id, options))
     }
 
-    func delete(id: String, options: CommonOptions?) async -> Bool {
+    func delete(id: String, options: CommonOptions?) async throws -> Bool {
         var options = options ?? CommonOptions()
         options.method = .DELETE
         
