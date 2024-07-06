@@ -1,5 +1,5 @@
 import Foundation
-@testable import PBSwift
+@testable import PocketBase
 
 
 enum ReplyBody {
@@ -22,8 +22,17 @@ struct RequestMock {
     var body: [String: Any]?
     var additionalMatcher: ((URLRequest) -> Bool)?
     var delay: Int?
-    var replyCode: Int?
+    var replyCode: Int
     var replyBody: ReplyBody?
+    
+    static func mock(_ method:HTTPMethod = .GET, 
+                     url: String? = nil,
+                     body: [String: Any]? = nil,
+                     additionalMatcher:((URLRequest) -> Bool)? = nil,
+                     replyCode: Int = 200,
+                     replyBody: ReplyBody? = nil) -> RequestMock {
+        return RequestMock(method: method, url: url, body: body,additionalMatcher: additionalMatcher, replyCode: replyCode, replyBody: replyBody)
+    }
 }
 
 func dummyJWT(payload: [String: Any] = [:]) -> String {
