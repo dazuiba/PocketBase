@@ -1,19 +1,9 @@
-import XCTest
+import Foundation
 import Quick
 import Nimble
 @testable import PocketBase
 
-//final class PBSwiftTests: XCTestCase {
-//    func testExample() throws {
-//        // XCTest Documentation
-//        // https://developer.apple.com/documentation/xctest
-//
-//        // Defining Test Cases and Test Methods
-//        // https://developer.apple.com/documentation/xctest/defining_test_cases_and_test_methods
-//    }
-//}
-
-class CLientSpec:  AsyncSpec{//QuickSpec
+class ClientSpec:  AsyncSpec{//QuickSpec
     override class func spec() {
         describe("Client") {
             

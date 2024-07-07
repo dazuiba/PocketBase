@@ -41,7 +41,7 @@ public class Utils {
     static func getTokenPayload(_ token: String) -> [String: Any] {
         let parts = token.components(separatedBy: ".")
         if parts.count == 3 {
-            if let payloadData = Data(base64Encoded: parts[1]) {
+            if let payloadData = paddedAndDecodeBase64(parts[1]) {
                 if let payload = try? JSONSerialization.jsonObject(with: payloadData, options: []) as? [String: Any] {
                     return payload 
                 }
@@ -49,4 +49,15 @@ public class Utils {
         }
         return [:]
     } 
+    
+
+    public static func paddedAndDecodeBase64(_ base64String: String) -> Data? {
+        // 计算需要填充的 `=` 数量
+        let remainder = base64String.count % 4
+        let paddingCount = remainder > 0 ? 4 - remainder : 0
+        
+        // 使用 `=` 填充字符串
+        let string = base64String.padding(toLength: base64String.count + paddingCount, withPad: "=", startingAt: 0)
+        return Data(base64Encoded: string, options: .ignoreUnknownCharacters)
+    }
 }

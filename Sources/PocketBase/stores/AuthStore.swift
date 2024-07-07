@@ -41,11 +41,14 @@ class AuthStore {
         return Utils.getTokenPayload(token)["type"] as? String == "authRecord"
     }
     
-    func save(token: String, model: AuthModel?) {
-        storageSet(storageKey, value: [
-            "token": token,
-            "model": model as Any
-        ])
+    func save(_ token: String, _ model: AuthModel? = nil) {
+        
+        var dict = ["token": token as Any]
+        if let model {
+            dict["model"] = model
+        }
+        
+        storageSet(storageKey, value:dict)
     }
 
     func clear() {
