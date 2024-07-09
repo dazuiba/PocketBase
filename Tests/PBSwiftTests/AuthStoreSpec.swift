@@ -8,20 +8,37 @@
 import Foundation
 import Quick
 import Nimble
+import DictionaryCoder
 @testable import PocketBase
 class AuthStoreSpec:  QuickSpec{//
     override class func spec() {
+        describe("AuthPayload") {
+            let model = RecordModel(id: "model1")
+            let payload = AuthPayload(token: "test", model: model)
+
+            it("Dictionary encoding/decoding") {
+                let encoded = try DictionaryEncoder().encode(payload)
+                expect(encoded["token"] as? String).to(equal("test"))
+                
+                let model = try DictionaryDecoder().decode(RecordModel.self, from: encoded["model"] as! [String : Any])
+                expect(model.id).to(equal("model1"))
+            }
+        }
+
         describe("AuthStore") {
             it("shoud store auth data"){
                 let store = AuthStore()
-                store.save("test1", ["id":"id1"])
+                store.save("test1", AuthModel(id: "id1"))
                 expect(store.token).to(equal("test1"))
                 
                 
-                store.save("test2", ["id":"id2"])
+                store.save("test2", AuthModel(id: "id2"))
                 expect(store.token).to(equal("test2"))
-                expect(store.model! as? [String:String]).to(equal(["id":"id2"]))
+                expect(store.model!.id).to(equal("id2"))
             }
+            
+            
+            
             
             it("shoud Admin"){
                 let store = AuthStore()
@@ -39,7 +56,7 @@ class AuthStoreSpec:  QuickSpec{//
             
             it("shoud clear auth data"){
                 let store = AuthStore()
-                store.save("test1", ["id":"id1"])
+                store.save("test1", AuthModel(id: "id1"))
                 expect(store.token).to(equal("test1"))
                 
                 store.clear()

@@ -130,20 +130,81 @@ struct LogModel: BaseModel,Codable {
     var data: [String: AnyCodable]
 }
 
-class RecordModel: BaseModel, Codable {
+
+class RecordModel: Codable {
     var id: String
-    var created: String
-    var updated: String
-    var collectionId: String
-    var collectionName: String
-    var expand: [String: AnyCodable]
-    init(id: String, created: String, updated: String, collectionId: String, collectionName: String, expand: [String : AnyCodable]) {
+    var created = ""
+    var updated = ""
+    var collectionId = ""
+    var collectionName = ""
+    public private(set) var expand = [String: AnyCodable]()
+    
+    enum CodingKeys: String, CodingKey {
+        case id, created, updated, collectionId, collectionName
+    }
+    
+    init(id: String,
+         created: String = "",
+         updated: String = "",
+         collectionId: String = "",
+         collectionName: String = "",
+         expand: [String : AnyCodable] = [String : AnyCodable]()) {
         self.id = id
         self.created = created
         self.updated = updated
         self.collectionId = collectionId
         self.collectionName = collectionName
         self.expand = expand
+    }
+    
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        created = try container.decodeIfPresent(String.self, forKey: .created) ?? ""
+        updated = try container.decodeIfPresent(String.self, forKey: .updated) ?? ""
+        collectionId = try container.decodeIfPresent(String.self, forKey: .collectionId) ?? ""
+        collectionName = try container.decodeIfPresent(String.self, forKey: .collectionName) ?? ""
+        
+        let expandContainer = try decoder.container(keyedBy: DynamicCodingKeys.self)
+        for key in expandContainer.allKeys {
+            if CodingKeys(stringValue: key.stringValue) == nil {
+                expand[key.stringValue] = try expandContainer.decode(AnyCodable.self, forKey: key)
+            }
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(created, forKey: .created)
+        try container.encode(updated, forKey: .updated)
+        try container.encode(collectionId, forKey: .collectionId)
+        try container.encode(collectionName, forKey: .collectionName)
+        
+        var expandContainer = encoder.container(keyedBy: DynamicCodingKeys.self)
+        for (key, value) in expand {
+            try expandContainer.encode(value, forKey: DynamicCodingKeys(stringValue: key)!)
+        }
+    }
+    
+    subscript(key: String) -> Any? {
+        return expand[key]?.value
+    }
+    
+    struct DynamicCodingKeys: CodingKey {
+        var stringValue: String
+        
+        init?(stringValue: String) {
+            self.stringValue = stringValue
+        }
+        
+        var intValue: Int? {
+            return nil
+        }
+        
+        init?(intValue: Int) {
+            return nil
+        }
     }
 }
 

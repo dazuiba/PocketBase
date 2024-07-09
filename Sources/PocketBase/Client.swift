@@ -630,7 +630,7 @@ public class Client {
  */
 
     func send(_ path: String, _ options: SendOptions) async throws -> (Data,URLResponse) {
-        let request = try options.buildRequest(forURL:self.baseUrl.appendingPathComponent(path))
+        let request = try options.buildRequest(forURL:self.baseUrl.appendingPathComponent(path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""))
         do {
             let (data, response) = try await RequestUtil.shared.fetch(request)
             guard let httpResponse = response as? HTTPURLResponse else {

@@ -302,7 +302,7 @@ class CrudService<T:Codable>: BaseService {
     }
 
     func getList(page: Int = 1, perPage: Int = 30, options: ListOptions?) async throws -> ListResult<T>{
-        var options = options ?? ListOptions()
+        let options = options ?? ListOptions()
         options.query = [
             "page": page,
             "perPage": perPage
@@ -312,7 +312,7 @@ class CrudService<T:Codable>: BaseService {
     }
     // Promise 转成 async/await
     func getFirstListItem(filter: String, options: ListOptions?) async throws -> T{
-        var options = options ?? ListOptions()
+        let options = options ?? ListOptions()
         options.requestKey = "one_by_filter_\(self.baseCrudPath)_\(filter)"
         options.query = [
             "filter": filter,
@@ -328,41 +328,44 @@ class CrudService<T:Codable>: BaseService {
         return result.items[0]
     }
 
-    func getOne(id: String, options: CommonOptions?) async throws -> T {
+    func getOne(_ id: String, options: CommonOptions? = nil) async throws -> T {
         guard !id.isEmpty else {
             throw ClientResponseError(status: 404, response: ["code": 404, "message": "Missing required record id.", "data": [:]])
         }
         
-        var options = options ?? CommonOptions()
+        let options = options ?? CommonOptions()
         return try self.decode(await self.client.send(self.baseCrudPath + "/" + id, options))
     }
 
-    func create(bodyParams: [String: Any]?, options: CommonOptions?) async throws -> T {
-        var options = options ?? CommonOptions()
+    func create(bodyParams: [String: Any]?, options: CommonOptions? = nil) async throws -> T {
+        let options = options ?? CommonOptions()
         options.method = .POST
         options.body = bodyParams
         
         return try self.decode(await self.client.send(self.baseCrudPath, options))
     }
 
-    func update(id: String, bodyParams: [String: Any]?, options: CommonOptions?) async throws -> T {
-        var options = options ?? CommonOptions()
+    @discardableResult
+    func update(_ id: String, _ bodyParams: [String: Any]?, options: CommonOptions? = nil) async throws -> T {
+        let options = options ?? CommonOptions()
         options.method = .PATCH
         options.body = bodyParams
-        
+        //{"email":"new@example.com","id":"test123"}，
+        //泛型是RecordModel，字段不匹配
+        // 要看一下 ts 中的实现
         return try self.decode(await self.client.send(self.baseCrudPath + "/" + id, options))
     }
 
-    func delete(id: String, options: CommonOptions?) async throws -> Bool {
-        var options = options ?? CommonOptions()
+    func delete(_ id: String, options: CommonOptions? = nil) async throws -> Bool {
+        let options = options ?? CommonOptions()
         options.method = .DELETE
         
         _ = try await self.client.send(self.baseCrudPath + "/" + id, options)
         return true
     }
 
-    func _getFullList(batchSize: Int, options: ListOptions?) async throws -> [T] {
-        var options = options ?? ListOptions()
+    func _getFullList(batchSize: Int, options: ListOptions? = nil) async throws -> [T] {
+        let options = options ?? ListOptions()
         options.query = [
             "skipTotal": 1
         ]

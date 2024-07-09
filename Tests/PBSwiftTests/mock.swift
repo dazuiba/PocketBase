@@ -18,7 +18,7 @@ enum ReplyBody {
 }
 struct RequestMock {
     var method = HTTPMethod.GET
-    var url: String?
+    var path: String?
     var body: [String: Any]?
     var additionalMatcher: ((URLRequest) -> Bool)?
     var delay: Int?
@@ -26,12 +26,20 @@ struct RequestMock {
     var replyBody: ReplyBody?
     
     static func mock(_ method:HTTPMethod = .GET, 
-                     url: String? = nil,
+                     path: String? = nil,
                      body: [String: Any]? = nil,
                      additionalMatcher:((URLRequest) -> Bool)? = nil,
                      replyCode: Int = 200,
                      replyBody: ReplyBody? = nil) -> RequestMock {
-        return RequestMock(method: method, url: url, body: body,additionalMatcher: additionalMatcher, replyCode: replyCode, replyBody: replyBody)
+        return RequestMock(method: method, path: path, body: body,additionalMatcher: additionalMatcher, replyCode: replyCode, replyBody: replyBody)
+    }
+    
+    func fullUrl(baseUrl:URL) -> String {
+        var str = "\(baseUrl.absoluteString)/\(self.path ?? "")"
+        if str.last == "/" {
+            str.removeLast()
+        }
+        return str
     }
 }
 
@@ -44,7 +52,7 @@ func dummyJWT(payload: [String: Any] = [:]) -> String {
 class FetchMock {
     private var originalFetch: FetchCompletion!
     private var mocks: [RequestMock] = []
-
+    
     func on(_ request: RequestMock) {
         mocks.append(request)
     }
@@ -52,15 +60,18 @@ class FetchMock {
     /**
      Initializes the mock by temporarily overwriting `URLSession.shared.dataTask`.
      */
-    func initMock() {
+    func initMock(baseUrl:URL) {
         originalFetch = RequestUtil.shared.fetch
         originalFetch = { request in
             return try await URLSession.shared.data(for:request)
         }
+        
         RequestUtil.shared.setFetch({ request in
             for mock in self.mocks {
                 // match url and method
-                guard let url = request.url, url.absoluteString == mock.url, request.httpMethod == mock.method.rawValue else {
+                let mockUrl =  mock.fullUrl(baseUrl: baseUrl)
+                guard let url = request.url, url.absoluteString == mockUrl, request.httpMethod == mock.method.rawValue else {
+                    print("req: \(request.url?.absoluteString ?? "") \nvs\nmock \(mockUrl)")
                     continue
                 }
 

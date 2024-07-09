@@ -165,7 +165,7 @@ enum HeaderValue: String {
     case Application_json = "application/json"
 }
 
-
+typealias Headers =  [HeaderKey: HeaderValue]
 
 extension URLComponents {
     mutating func appendQueryItems(_ items:[URLQueryItem]) {
@@ -184,20 +184,19 @@ public struct FormData {
     
 }
 extension URLRequest {
-    mutating func processBody(_ body:Any,encoder:JSONEncoder,accpetJSON:Bool) throws {
-        
+    mutating func process(body:Any,headers:Headers) throws {
         switch body {
         case let body as Data:
             self.httpBody = body
         case let body as String:
-            self.httpBody = accpetJSON ? try JSONSerialization.data(withJSONObject: body) : body.data(using: .utf8)
+            let appJson = headers[HeaderKey.Content_Type] == .Application_json
+            self.httpBody = appJson ? try JSONSerialization.data(withJSONObject: body) : body.data(using: .utf8)
         case let body as FormData:
             self.httpBody = body.asData()
         case let body as Encodable:
-            precondition(accpetJSON)
-            self.httpBody = try encoder.encode(body)
+            self.httpBody = try JSONEncoder.normal().encode(body)
         default:
-            precondition( false )//should not reach here
+            self.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
     }
 }
@@ -205,7 +204,6 @@ extension URLRequest {
 protocol SendOptionsProtocol {
     associatedtype QueryType
 
-    // var jsonEncoder: JSONEncoder { get set }
     var method: HTTPMethod { get set }
     var headers: [HeaderKey: HeaderValue] { get set }
     var body: Any? { get set }
@@ -214,10 +212,9 @@ protocol SendOptionsProtocol {
 
 class SendOptions: SendOptionsProtocol {
     typealias QueryType = [String: Any]
-    var jsonEncoder = JSONEncoder.normal()
     
     var method = HTTPMethod.GET
-    var headers = [HeaderKey: HeaderValue]()
+    var headers = Headers()
     var body: Any?
     var query: [String: Any]?
     var requestKey: String?
@@ -247,9 +244,7 @@ class SendOptions: SendOptionsProtocol {
             $0[$1.key.rawValue] = $1.value.rawValue
         }
         if let body = self.body{
-            try request.processBody(body,
-                                    encoder: self.jsonEncoder,
-                                    accpetJSON: self.headers[HeaderKey.Content_Type] == .Application_json)
+            try request.process(body: body, headers: self.headers)
         }
         return request
     }

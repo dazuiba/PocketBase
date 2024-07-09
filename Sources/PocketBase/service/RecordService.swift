@@ -1096,4 +1096,27 @@ class RecordService<M: RecordModel>: CrudService<M> {
         return "/api/collections/" + self.collectionIdOrName
     }
     
+    @discardableResult
+    override func update(_ id: String, _ bodyParams: [String : Any]?, options: CommonOptions? = nil) async throws -> M {
+        let record = try await super.update(id, bodyParams, options: options)
+        /**
+            将以下typescript 代码转为 swift
+         if (
+                    // is record auth
+                    this.client.authStore.model?.id === item?.id &&
+                    (this.client.authStore.model?.collectionId === this.collectionIdOrName ||
+                        this.client.authStore.model?.collectionName ===
+                            this.collectionIdOrName)
+                ) {
+                    this.client.authStore.save(this.client.authStore.token, item);
+                }
+         */
+        if let model = self.client.authStore.model, 
+            model.id == record.id,
+            model.collectionId == self.collectionIdOrName || model.collectionName == self.collectionIdOrName {
+            self.client.authStore.save(self.client.authStore.token, record)
+        }
+        return record
+    }
+    
 }

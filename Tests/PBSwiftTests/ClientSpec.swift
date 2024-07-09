@@ -6,10 +6,10 @@ import Nimble
 class ClientSpec:  AsyncSpec{//QuickSpec
     override class func spec() {
         describe("Client") {
-            
+            let baseUrl = URL(string: "//test_base_url")!
             let fetchMock = FetchMock();
             beforeSuite(){
-                fetchMock.initMock()
+                fetchMock.initMock(baseUrl: baseUrl)
             }
             
             afterSuite {
@@ -22,14 +22,14 @@ class ClientSpec:  AsyncSpec{//QuickSpec
             
             describe("send()"){
                 it("Should build and send http request") {
-                    let client = Client(baseUrl: URL(string: "test_base_url")!)
-                    fetchMock.on(.mock(url: "test_base_url/123", replyCode: 200, replyBody: .string("successGet")));
+                    let client = Client(baseUrl: baseUrl)
+                    fetchMock.on(.mock(path: "123", replyCode: 200, replyBody: .string("successGet")));
                     //swift code:
-                    fetchMock.on(.mock(.POST, url: "test_base_url/123", replyCode: 200, replyBody: .string("successPost")));
-                    fetchMock.on(.mock(.PUT, url: "test_base_url/123", replyCode: 200, replyBody: .string("successPut")));
-                    fetchMock.on(.mock(.PATCH, url: "test_base_url/123", replyCode: 200, replyBody: .string("successPatch")));
-                    fetchMock.on(.mock(.DELETE, url: "test_base_url/123", replyCode: 200, replyBody: .string("successDelete")));
-                    fetchMock.on(.mock(url: "test_base_url/multipart",
+                    fetchMock.on(.mock(.POST, path: "123", replyCode: 200, replyBody: .string("successPost")));
+                    fetchMock.on(.mock(.PUT, path: "123", replyCode: 200, replyBody: .string("successPut")));
+                    fetchMock.on(.mock(.PATCH, path: "123", replyCode: 200, replyBody: .string("successPatch")));
+                    fetchMock.on(.mock(.DELETE, path: "123", replyCode: 200, replyBody: .string("successDelete")));
+                    fetchMock.on(.mock(path: "multipart",
                                        additionalMatcher: {
                         $0.value(forHTTPHeaderField: "Content-Type") == nil
                     },

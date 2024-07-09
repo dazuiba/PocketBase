@@ -5,28 +5,71 @@
 //  Created by Zhanggy on 02.07.24.
 //
 import Foundation
+import DictionaryCoder
 
-typealias AuthModel = [String: Any]? // Optional dictionary
+typealias AuthModel = RecordModel //[String: Any]? // Optional dictionary
 
 //typealias OnStoreChangeFunc = (String, AuthModel?) -> Void
 
 let defaultCookieKey = "pb_auth"
 
+struct AuthPayload: Codable {
+    var token:String
+    var model:AuthModel?
+}
+
+protocol Storage {
+    associatedtype T:Codable
+
+    func remove(forKey: String)
+    func object(forKey: String) throws  -> T?
+    func set(_ value: T, forKey: String) throws
+}
+
+class CachedStorage : Storage {
+    typealias T = AuthPayload
+
+    var userDefaults = UserDefaults.standard
+    
+    var cached: T?
+    func remove(forKey: String) {
+        cached = nil
+        userDefaults.removeObject(forKey: forKey)
+    }
+
+    func object(forKey: String) throws -> T? {
+        if let cached {
+            return cached
+        }
+        if let value = userDefaults.object(forKey: forKey) {
+            return try DictionaryDecoder().decode(T.self, from: value as! [String : Any])
+        }
+        return nil
+    }
+    
+    func set(_ value: T, forKey: String) throws {
+        cached = value
+        let encoded = try DictionaryEncoder().encode(value)
+        userDefaults.set(encoded, forKey: forKey)
+    }
+
+}
+
 class AuthStore {
     private let storageKey: String = "pocketbase_auth"
     private var baseToken: String = ""
     private var baseModel: AuthModel? = nil
-    private var userDefaults = UserDefaults.standard
+    private var storage = CachedStorage()
 //    private var onChangeCallbacks: [OnStoreChangeFunc] = []
 
     var token: String {
-        let data = storageGet(storageKey) as? [String: Any] ?? [:]
-        return data["token"] as? String ?? ""
+        let payload = try? self.storage.object(forKey: storageKey)
+        return payload?.token ?? ""
     }
 
     var model: AuthModel? {
-        let data = storageGet(storageKey) as? [String: Any] ?? [:]
-        return data["model"] as? AuthModel
+        let payload = try? self.storage.object(forKey: storageKey)
+        return payload?.model
     }
     
     var isValid: Bool {
@@ -41,33 +84,15 @@ class AuthStore {
         return Utils.getTokenPayload(token)["type"] as? String == "authRecord"
     }
     
-    func save(_ token: String, _ model: AuthModel? = nil) {
-        
-        var dict = ["token": token as Any]
-        if let model {
-            dict["model"] = model
-        }
-        
-        storageSet(storageKey, value:dict)
+    func save(_ token: String, _ model: AuthModel? = nil){
+        let payload = AuthPayload(token: token, model: model)
+        try! self.storage.set(payload, forKey: storageKey)
     }
 
     func clear() {
-        storageRemove(storageKey)
+        self.storage.remove(forKey: storageKey)
     }
-
-    // Internal helpers:
-
-    private func storageGet(_ key: String) -> Any? {
-        self.userDefaults.object(forKey: key)
-    }
-
-    private func storageSet(_ key: String, value: Any) {
-        self.userDefaults.set(value, forKey: key)
-    }
-
-    private func storageRemove(_ key: String) {
-        self.userDefaults.removeObject(forKey: key)
-    }
+ 
 }
 
 func cookieParse(_ cookie: String) -> [String: String] {
