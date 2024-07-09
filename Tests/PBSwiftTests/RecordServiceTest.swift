@@ -17,7 +17,7 @@ class RecordServiceSpec:  AsyncSpec{
     override class func spec() {
         describe("RecordService") {
             let baseUrl = URL(string: "//test_base_url")!
-
+            
             let client = Client(baseUrl: baseUrl)
             let service = RecordService(client, "sub=")
             
@@ -42,87 +42,76 @@ class RecordServiceSpec:  AsyncSpec{
                         "email": "new@example.com"
                     ])))
                     
-                    try service.client.authStore.save("test_token", DictionaryDecoder().decode(AuthModel.self, from: [
+                    service.client.authStore.save("test_token",[
                         "id": "test123",
                         "collectionName": "sub="
-                    ]))
+                    ])
                     try await service.update("test123", [:])
                     let authModel = service.client.authStore.model!
                     let email = authModel["email"] as! String
                     expect(email).to(equal("new@example.com"))
                 }
-                /**
-                it("Should not update the AuthStore record model on matching id but mismatched collection") {
-                    fetchMock.on(method: "PATCH", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 200, replyBody: [
-                        "id": "test123",
-                        "email": "new@example.com"
-                    ])
-                    service.client.authStore.save("test_token", [
-                        "id": "test123",
-                        "email": "old@example.com",
-                        "collectionName": "diff"
-                    ])
-                    try await service.update("test123", [:])
-                    expect(service.client.authStore.model?.email).to(equal("old@example.com"))
-                }
                 
                 it("Should not update the AuthStore record model on mismatched update id") {
-                    fetchMock.on(method: "PATCH", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 200, replyBody: [
+                    fetchMock.on(.mock(.PATCH, path: "api/collections/sub%3D/records/test123", replyCode: 200, replyBody: .json([
                         "id": "test123",
                         "email": "new@example.com"
-                    ])
+                    ])))
+                    
                     service.client.authStore.save("test_token", [
                         "id": "test456",
                         "email": "old@example.com",
                         "collectionName": "sub="
                     ])
+                    
                     try await service.update("test123", [:])
-                    expect(service.client.authStore.model?.email).to(equal("old@example.com"))
+                    expect(service.client.authStore.model?["email"] as? String).to(equal("old@example.com"))
                 }
-                
-                it("Should delete the AuthStore record model on matching delete id and collection") {
-                    fetchMock.on(method: "DELETE", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 204)
-                    service.client.authStore.save("test_token", [
-                        "id": "test123",
-                        "collectionName": "sub="
-                    ])
-                    try await service.delete("test123")
-                    expect(service.client.authStore.model).to(beNil())
-                }
-                
-                it("Should not delete the AuthStore record model on matching delete id but mismatched collection") {
-                    fetchMock.on(method: "DELETE", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 204)
-                    service.client.authStore.save("test_token", [
-                        "id": "test123",
-                        "collectionName": "diff"
-                    ])
-                    try await service.delete("test123")
-                    expect(service.client.authStore.model).toNot(beNil())
-                }
-                
-                it("Should not delete the AuthStore record model on mismatched delete id") {
-                    fetchMock.on(method: "DELETE", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 204)
-                    service.client.authStore.save("test_token", [
-                        "id": "test456",
-                        "collectionName": "sub="
-                    ])
-                    try await service.delete("test123")
-                    expect(service.client.authStore.model).toNot(beNil())
-                }
-                
-                it("Should update the AuthStore record model verified state on matching token data") {
-                    let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyMyIsInR5cGUiOiJhdXRoUmVjb3JkIiwiY29sbGVjdGlvbklkIjoiNDU2In0.c9ZkXkC8rSqkKlpyx3kXt9ID3qYsIoy1Vz3a2m3ly0c"
-                    fetchMock.on(method: "POST", url: service.client.buildUrl(service.baseCollectionPath) + "/confirm-verification", body: ["token": token], replyCode: 204, replyBody: true)
-                    service.client.authStore.save("auth_token", [
-                        "id": "123",
-                        "collectionId": "456",
-                        "verified": false
-                    ])
-                    let result = try await service.confirmVerification(token)
-                    expect(result).to(beTrue())
-                    expect(service.client.authStore.model?.verified).to(beTrue())
-                }
-                **/
+                /**
+                 
+                 it("Should delete the AuthStore record model on matching delete id and collection") {
+                 fetchMock.on(method: "DELETE", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 204)
+                 service.client.authStore.save("test_token", [
+                 "id": "test123",
+                 "collectionName": "sub="
+                 ])
+                 try await service.delete("test123")
+                 expect(service.client.authStore.model).to(beNil())
+                 }
+                 
+                 it("Should not delete the AuthStore record model on matching delete id but mismatched collection") {
+                 fetchMock.on(method: "DELETE", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 204)
+                 service.client.authStore.save("test_token", [
+                 "id": "test123",
+                 "collectionName": "diff"
+                 ])
+                 try await service.delete("test123")
+                 expect(service.client.authStore.model).toNot(beNil())
+                 }
+                 
+                 it("Should not delete the AuthStore record model on mismatched delete id") {
+                 fetchMock.on(method: "DELETE", url: service.client.buildUrl("/api/collections/sub%3D/records/test123"), replyCode: 204)
+                 service.client.authStore.save("test_token", [
+                 "id": "test456",
+                 "collectionName": "sub="
+                 ])
+                 try await service.delete("test123")
+                 expect(service.client.authStore.model).toNot(beNil())
+                 }
+                 
+                 it("Should update the AuthStore record model verified state on matching token data") {
+                 let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyMyIsInR5cGUiOiJhdXRoUmVjb3JkIiwiY29sbGVjdGlvbklkIjoiNDU2In0.c9ZkXkC8rSqkKlpyx3kXt9ID3qYsIoy1Vz3a2m3ly0c"
+                 fetchMock.on(method: "POST", url: service.client.buildUrl(service.baseCollectionPath) + "/confirm-verification", body: ["token": token], replyCode: 204, replyBody: true)
+                 service.client.authStore.save("auth_token", [
+                 "id": "123",
+                 "collectionId": "456",
+                 "verified": false
+                 ])
+                 let result = try await service.confirmVerification(token)
+                 expect(result).to(beTrue())
+                 expect(service.client.authStore.model?.verified).to(beTrue())
+                 }
+                 **/
                 it("Should not update the AuthStore record model verified state on mismatched token data") {
                     // TODO: Add test implementation
                 }

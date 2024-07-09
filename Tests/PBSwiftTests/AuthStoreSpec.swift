@@ -28,11 +28,11 @@ class AuthStoreSpec:  QuickSpec{//
         describe("AuthStore") {
             it("shoud store auth data"){
                 let store = AuthStore()
-                store.save("test1", AuthModel(id: "id1"))
+                store.save("test1", ["id":"id1"])
                 expect(store.token).to(equal("test1"))
                 
                 
-                store.save("test2", AuthModel(id: "id2"))
+                store.save("test2", ["id":"id2"])
                 expect(store.token).to(equal("test2"))
                 expect(store.model!.id).to(equal("id2"))
             }
@@ -56,7 +56,7 @@ class AuthStoreSpec:  QuickSpec{//
             
             it("shoud clear auth data"){
                 let store = AuthStore()
-                store.save("test1", AuthModel(id: "id1"))
+                store.save("test1", ["id":"id1"])
                 expect(store.token).to(equal("test1"))
                 
                 store.clear()

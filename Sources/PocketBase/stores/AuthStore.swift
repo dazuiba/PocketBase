@@ -84,7 +84,15 @@ class AuthStore {
         return Utils.getTokenPayload(token)["type"] as? String == "authRecord"
     }
     
-    func save(_ token: String, _ model: AuthModel? = nil){
+    func save(_ token:String,_ dict:[String:Any]? = nil)  {
+        self.save(token: token, orDict: dict)
+    }
+    
+    func save(token: String, model: AuthModel? = nil, orDict:[String:Any]? = nil){
+        var model = model
+        if let orDict {
+            model = try! DictionaryDecoder().decode(AuthModel.self, from: orDict)
+        }
         let payload = AuthPayload(token: token, model: model)
         try! self.storage.set(payload, forKey: storageKey)
     }

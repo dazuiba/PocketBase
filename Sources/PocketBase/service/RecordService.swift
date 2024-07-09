@@ -1114,7 +1114,7 @@ class RecordService<M: RecordModel>: CrudService<M> {
         if let model = self.client.authStore.model, 
             model.id == record.id,
             model.collectionId == self.collectionIdOrName || model.collectionName == self.collectionIdOrName {
-            self.client.authStore.save(self.client.authStore.token, record)
+            self.client.authStore.save(token: self.client.authStore.token, model:record)
         }
         return record
     }
