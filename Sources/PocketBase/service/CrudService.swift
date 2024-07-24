@@ -1,4 +1,5 @@
 import Foundation
+import ObjectMapper
 // Convert the following TypeScript code to Swift:
 
 /*
@@ -277,47 +278,49 @@ import Foundation
 // Swift code:
 
 // 定义一个基础服务协议
-protocol BaseService {
+public protocol BaseService {
     var baseCrudPath: String { get }
 }
 
 // 定义一个基础服务协议的扩展
 extension BaseService {
-    func decode<T:Decodable>(_ data: (Data,URLResponse)) throws -> T {
-        let decodedData = try JSONDecoder().decode(T.self, from: data.0)
-        return decodedData
+    func decode<T:Mappable>(_ data: (Data,URLResponse)) throws -> T {
+        guard let result = T(JSONData: data.0) else {
+            throw PocketBaseError.invalidResponse(data.0)
+        }
+        return result
     }
 }
 
 // 定义一个基础服务类
-class CrudService<T:Codable>: BaseService {
-    var client: Client
-    var baseCrudPath: String {
+public class CrudService<T:Mappable>: BaseService {
+    public var client: Client
+    public var baseCrudPath: String {
         precondition(false,"implement me!")
         return ""
     }
 
-    init(client: Client) {
+    public init(client: Client) {
         self.client = client
     }
 
-    func getList(page: Int = 1, perPage: Int = 30, options: ListOptions?) async throws -> ListResult<T>{
-        let options = options ?? ListOptions()
-        options.query = [
-            "page": page,
-            "perPage": perPage
-        ]
+    public func getList(page: Int? = nil, perPage: Int? = nil, options: ListOptions = ListOptions() ) async throws -> ListResult<T>{
         
+        if let page {
+            options.page = page
+        }
+        
+        if let perPage {
+            options.perPage = perPage
+        }
+
         return  try self.decode(await self.client.send(self.baseCrudPath, options))
     }
     // Promise 转成 async/await
-    func getFirstListItem(filter: String, options: ListOptions?) async throws -> T{
+    public func getFirstListItem(_ filter: String, options: ListOptions?) async throws -> T{
         let options = options ?? ListOptions()
         options.requestKey = "one_by_filter_\(self.baseCrudPath)_\(filter)"
-        options.query = [
-            "filter": filter,
-            "skipTotal": 1
-        ]
+        options.mergeQuery(["filter": filter,"skipTotal": 1])
         
         let result = try await self.getList(page: 1, perPage: 1, options: options)
         
@@ -328,7 +331,7 @@ class CrudService<T:Codable>: BaseService {
         return result.items[0]
     }
 
-    func getOne(_ id: String, options: CommonOptions? = nil) async throws -> T {
+    public func getOne(_ id: String, options: CommonOptions? = nil) async throws -> T {
         guard !id.isEmpty else {
             throw ClientResponseError(status: 404, response: ["code": 404, "message": "Missing required record id.", "data": [:]])
         }
@@ -337,7 +340,7 @@ class CrudService<T:Codable>: BaseService {
         return try self.decode(await self.client.send(self.baseCrudPath + "/" + id, options))
     }
 
-    func create(bodyParams: [String: Any]?, options: CommonOptions? = nil) async throws -> T {
+    public func create(_ bodyParams: [String: Any]?, options: CommonOptions? = nil) async throws -> T {
         let options = options ?? CommonOptions()
         options.method = .POST
         options.body = bodyParams
@@ -346,7 +349,7 @@ class CrudService<T:Codable>: BaseService {
     }
 
     @discardableResult
-    func update(_ id: String, _ bodyParams: [String: Any]?, options: CommonOptions? = nil) async throws -> T {
+    public func update(_ id: String, _ bodyParams: [String: Any]?, options: CommonOptions? = nil) async throws -> T {
         let options = options ?? CommonOptions()
         options.method = .PATCH
         options.body = bodyParams
@@ -356,7 +359,8 @@ class CrudService<T:Codable>: BaseService {
         return try self.decode(await self.client.send(self.baseCrudPath + "/" + id, options))
     }
 
-    func delete(_ id: String, options: CommonOptions? = nil) async throws -> Bool {
+    @discardableResult
+    public func delete(_ id: String, options: CommonOptions? = nil) async throws -> Bool {
         let options = options ?? CommonOptions()
         options.method = .DELETE
         
@@ -364,16 +368,15 @@ class CrudService<T:Codable>: BaseService {
         return true
     }
 
-    func _getFullList(batchSize: Int, options: ListOptions? = nil) async throws -> [T] {
+    public func getFullList(options: ListOptions? = nil) async throws -> [T] {
         let options = options ?? ListOptions()
-        options.query = [
-            "skipTotal": 1
-        ]
+ 
+        options.mergeQuery(["skipTotal": 1])
         
         var result: [T] = []
         
         func request(_ page: Int) async throws -> [T] {
-            let list = try await self.getList(page:page, perPage:batchSize, options: options)
+            let list = try await self.getList(page:page,options: options)
             let items = list.items
             
             result.append(contentsOf: items)

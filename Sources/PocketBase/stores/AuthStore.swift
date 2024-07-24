@@ -5,83 +5,87 @@
 //  Created by Zhanggy on 02.07.24.
 //
 import Foundation
-import DictionaryCoder
+import ObjectMapper
 
-typealias AuthModel = RecordModel //[String: Any]? // Optional dictionary
+//typealias AuthModel = RecordModel //[String: Any]? // Optional dictionary
+//typealias TokenObject = RecordModel
+
+
+
 
 //typealias OnStoreChangeFunc = (String, AuthModel?) -> Void
 
 let defaultCookieKey = "pb_auth"
 
-struct AuthPayload: Codable {
-    var token:String
-    var model:AuthModel?
-}
-
 protocol Storage {
-    associatedtype T:Codable
+    associatedtype T:Mappable
 
-    func remove(forKey: String)
-    func object(forKey: String) throws  -> T?
-    func set(_ value: T, forKey: String) throws
+    func remove()
+    func object() throws  -> T?
+    func set(_ value: T) throws
 }
 
 class CachedStorage : Storage {
+    private let storageKey: String = "pocketbase_auth"
     typealias T = AuthPayload
 
     var userDefaults = UserDefaults.standard
     
     var cached: T?
-    func remove(forKey: String) {
+    func remove() {
         cached = nil
-        userDefaults.removeObject(forKey: forKey)
+        userDefaults.removeObject(forKey: storageKey)
     }
 
-    func object(forKey: String) throws -> T? {
+    func object() -> T? {
         if let cached {
             return cached
         }
-        if let value = userDefaults.object(forKey: forKey) {
-            return try DictionaryDecoder().decode(T.self, from: value as! [String : Any])
+        
+        func readObj() -> T?{
+            guard let value = userDefaults.object(forKey: storageKey) as? [String : Any]  else { return nil }
+            return AuthPayload(JSON: value)
         }
-        return nil
+        
+        cached = readObj()
+        return cached
     }
     
-    func set(_ value: T, forKey: String) throws {
+    func set(_ value: T) {
         cached = value
-        let encoded = try DictionaryEncoder().encode(value)
-        userDefaults.set(encoded, forKey: forKey)
+        let json = Mapper().toJSON(value)
+        userDefaults.set(json, forKey: storageKey)
     }
 
 }
 
-class AuthStore {
-    private let storageKey: String = "pocketbase_auth"
+public class AuthStore {
     private var baseToken: String = ""
     private var baseModel: AuthModel? = nil
     private var storage = CachedStorage()
 //    private var onChangeCallbacks: [OnStoreChangeFunc] = []
-
-    var token: String {
-        let payload = try? self.storage.object(forKey: storageKey)
-        return payload?.token ?? ""
+    public var token: String {
+        return self.storage.object()?.token ?? ""
     }
 
-    var model: AuthModel? {
-        let payload = try? self.storage.object(forKey: storageKey)
-        return payload?.model
+    public var tokenObj: TokenObject? {
+        return self.storage.object()?.tokenObj
+    }
+
+    public var model: AuthModel? {
+        return self.storage.object()?.model
     }
     
-    var isValid: Bool {
-        return !isTokenExpired(token)
+    public var isValid: Bool {
+        return self.tokenObj?.isValid() ?? false
     }
     
-    var isAdmin: Bool {
-        return Utils.getTokenPayload(token)["type"] as? String == "admin"
+    public var isAdmin: Bool {
+        return self.tokenObj?.type == .admin
     }
     
-    var isAuthRecord: Bool {
-        return Utils.getTokenPayload(token)["type"] as? String == "authRecord"
+    public var isAuthRecord: Bool {
+        return self.tokenObj?.type == .authRecord
     }
     
     func save(_ token:String,_ dict:[String:Any]? = nil)  {
@@ -91,14 +95,14 @@ class AuthStore {
     func save(token: String, model: AuthModel? = nil, orDict:[String:Any]? = nil){
         var model = model
         if let orDict {
-            model = try! DictionaryDecoder().decode(AuthModel.self, from: orDict)
+            model = AuthModel(JSON: orDict)
         }
         let payload = AuthPayload(token: token, model: model)
-        try! self.storage.set(payload, forKey: storageKey)
+        self.storage.set(payload)
     }
 
-    func clear() {
-        self.storage.remove(forKey: storageKey)
+    public func clear() {
+        self.storage.remove()
     }
  
 }

@@ -1080,15 +1080,15 @@ struct RecordSubscription<T: RecordModel> {
 }
 
 
-class RecordService<M: RecordModel>: CrudService<M> {
+public class RecordService<M: RecordModel>: CrudService<M> {
     var collectionIdOrName: String
     
-    init(_ client: Client, _ collectionIdOrName: String) {
+    init(client: Client, _ collectionIdOrName: String) {
         self.collectionIdOrName = collectionIdOrName
         super.init(client: client)
     }
     
-    override var baseCrudPath: String {
+    public override var baseCrudPath: String {
         return self.baseCollectionPath + "/records"
     }
     
@@ -1097,26 +1097,44 @@ class RecordService<M: RecordModel>: CrudService<M> {
     }
     
     @discardableResult
-    override func update(_ id: String, _ bodyParams: [String : Any]?, options: CommonOptions? = nil) async throws -> M {
+    public override func update(_ id: String, _ bodyParams: [String : Any]?, options: CommonOptions? = nil) async throws -> M {
         let record = try await super.update(id, bodyParams, options: options)
-        /**
-            将以下typescript 代码转为 swift
-         if (
-                    // is record auth
-                    this.client.authStore.model?.id === item?.id &&
-                    (this.client.authStore.model?.collectionId === this.collectionIdOrName ||
-                        this.client.authStore.model?.collectionName ===
-                            this.collectionIdOrName)
-                ) {
-                    this.client.authStore.save(this.client.authStore.token, item);
-                }
-         */
-        if let model = self.client.authStore.model, 
-            model.id == record.id,
-            model.collectionId == self.collectionIdOrName || model.collectionName == self.collectionIdOrName {
-            self.client.authStore.save(token: self.client.authStore.token, model:record)
+        precondition(record.id == id)
+        let authStore = self.client.authStore
+        if let model = authStore.model,
+           model.id == record.id,
+           model.isCollectionEqualTo(self.collectionIdOrName){
+            authStore.save(token: authStore.token, model:record)
         }
         return record
     }
+    @discardableResult
+    public override func delete(_ id: String, options: CommonOptions? = nil) async throws -> Bool {
+        if try await super.delete(id, options: options) {
+            let authStore = self.client.authStore
+            if let model = authStore.model,
+               model.id == id,
+               model.isCollectionEqualTo(self.collectionIdOrName){
+               authStore.clear()
+            }
+
+            return true
+        }
+        return false
+    }
     
+    
+    public func confirmVerification(_ token: String) async throws {
+        let option = CommonOptions.option(.POST,body: ["token": token])
+        
+        try await client.send("\(self.baseCollectionPath)/confirm-verification", option)
+        if let payload = Utils.getTokenPayload(token),
+           let model = client.authStore.model,
+           !model.verified,
+           model.id == payload.id,
+           model.collectionId == payload.collectionId {
+            model.verified = true
+            client.authStore.save(token: client.authStore.token, model: model)
+        }
+    }
 }

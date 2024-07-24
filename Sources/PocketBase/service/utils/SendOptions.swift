@@ -148,8 +148,9 @@ export function normalizeUnknownQueryParams(options?: SendOptions): void {
 
 // Swift code:
 import Foundation
+import ObjectMapper
 
-public enum HTTPMethod: String {
+public enum HTTPMethod: String,Codable {
     case GET = "GET"
     case POST = "POST"
     case PUT = "PUT"
@@ -157,15 +158,16 @@ public enum HTTPMethod: String {
     case DELETE = "DELETE"
 }
 
-enum HeaderKey : String {
-    case Content_Type = "Content-Type"
-}
+//enum HeaderKey : String {
+//    case Content_Type = "Content-Type"
+//}
+//
+//enum HeaderValue: String {
+//    case Application_json = "application/json"
+//}
 
-enum HeaderValue: String {
-    case Application_json = "application/json"
-}
-
-typealias Headers =  [HeaderKey: HeaderValue]
+public typealias Headers =  [String: String]
+public typealias Querys =  [String: Any]
 
 extension URLComponents {
     mutating func appendQueryItems(_ items:[URLQueryItem]) {
@@ -189,7 +191,7 @@ extension URLRequest {
         case let body as Data:
             self.httpBody = body
         case let body as String:
-            let appJson = headers[HeaderKey.Content_Type] == .Application_json
+            let appJson = (headers["Content-Type"] == "application/json")
             self.httpBody = appJson ? try JSONSerialization.data(withJSONObject: body) : body.data(using: .utf8)
         case let body as FormData:
             self.httpBody = body.asData()
@@ -202,87 +204,156 @@ extension URLRequest {
 }
 
 protocol SendOptionsProtocol {
-    associatedtype QueryType
+//    associatedtype QueryType
 
     var method: HTTPMethod { get set }
-    var headers: [HeaderKey: HeaderValue] { get set }
+    var headers: Headers { get set }
     var body: Any? { get set }
-    var query: QueryType? { get set } 
+   // var query: QueryType? { get set }
 }
 
-class SendOptions: SendOptionsProtocol {
-    typealias QueryType = [String: Any]
+//extension Dictionary  where Key == String {
+//    
+//}
+
+public class SendOptions:Mappable, SendOptionsProtocol {
+//    typealias QueryType = [String: Any]
+    public var method:HTTPMethod = HTTPMethod.GET
+    public var headers:Headers = Headers()
+    public var body: Any?
+    private var query = Querys()
+    public var requestKey: String?
     
-    var method = HTTPMethod.GET
-    var headers = Headers()
-    var body: Any?
-    var query: [String: Any]?
-    var requestKey: String?
-    
-    public static func option(_ method:HTTPMethod = .GET, body:Any? = nil) -> SendOptions {
-        let option = SendOptions()
+    public class func option(_ method:HTTPMethod = .GET, body:Any? = nil, headers:Headers? = nil ) -> Self {
+        let option = Self.init(JSON: [:])!
         option.method = method
         option.body = body
+        if let headers {
+            option.headers = headers
+        }
         return option
     }
-
+    
+    func mergeQuery(_ query:Querys,useNew:Bool = true) {
+        self.query.merge(query){(old,new) in useNew ? new : old}
+    }
+    
+    func buildQueryParams() -> [String:Any] {
+        var json = Mapper(context: Context.request).toJSON(self)
+        json.merge(query) { (_, new) in new }
+        return json
+    }
+     
     func buildRequest(forURL:URL) throws -> URLRequest {
-        // Serialize the query parameters
         var comp = URLComponents(url: forURL, resolvingAgainstBaseURL: true)
-        if let query = self.query {
-            comp?.appendQueryItems(query.map {  URLQueryItem(name: $0, value:"\($1)")} )
-        }
         
+        let params = self.buildQueryParams()
+        
+        comp?.appendQueryItems(params.map {  URLQueryItem(name: $0, value:"\($1)")} )
         guard let url = comp?.url else {
             throw PocketBaseError.invalidArgument("url:\(forURL),query:\(String(describing: self.query))")
         }
         
-        
         var request = URLRequest(url: url)
         request.httpMethod = self.method.rawValue
         request.allHTTPHeaderFields = self.headers.reduce(into: [String: String]()) {
-            $0[$1.key.rawValue] = $1.value.rawValue
+            $0[$1.key] = String(describing: $1.value)
         }
+        
         if let body = self.body{
             try request.process(body: body, headers: self.headers)
         }
         return request
     }
+    
+    enum Context: MapContext {
+        case request
+    }
+    public init(){
+        
+    }
+
+    public required init?(map: ObjectMapper.Map) {
+        
+    }
+    
+    public func mapping(map: ObjectMapper.Map) {
+        if map.mappingType == .toJSON {
+            if let ctx = map.context as? Context, ctx == .request {
+                //skip
+                return
+            }
+        }
+        method <- map["method"]
+        headers <- map["headers"]
+        body <- map["body"]
+        query <- map["query"]
+        requestKey <- map["requestKey"]
+    }
+    
 }
 
-class CommonOptions: SendOptions {
-    var fields: String?
+public class CommonOptions: SendOptions {
+    public var fields: String?
+    public override func mapping(map: ObjectMapper.Map) {
+        super.mapping(map: map)
+        fields <- map["fields"]
+    }
 }
 
-class ListOptions: CommonOptions {
-    var page: Int?
-    var perPage: Int?
-    var sort: String?
-    var filter: String?
-    var skipTotal: Bool?
-}
-class FullListOptions: ListOptions {
-    var batch: Int?
+public class ListOptions: CommonOptions {
+    public var page: Int = 1
+    public var perPage: Int = 20
+    public var sort: String?
+    public var filter: String?
+    public var expand: String?
+    public var skipTotal: Bool?
+
+    public override func mapping(map: ObjectMapper.Map) {
+        super.mapping(map: map)
+        page <- map["page"]
+        perPage <- map["perPage"]
+        sort <- map["sort"]
+        filter <- map["filter"]
+        expand <- map["expand"]
+        skipTotal <- map["skipTotal"]
+    }
+
 }
 
-class RecordOptions: CommonOptions {
+
+//class FullListOptions: ListOptions {
+//    var batch: Int = 20
+//}
+
+public class RecordOptions: CommonOptions {
     var expand: String?
+    public override func mapping(map: ObjectMapper.Map) {
+        super.mapping(map: map)
+        expand <- map["expand"]
+    }
 }
 
-class FileOptions: CommonOptions {
+public class FileOptions: CommonOptions {
     var thumb: String?
     var download: Bool?
+    public override func mapping(map: ObjectMapper.Map) {
+        super.mapping(map: map)
+        thumb <- map["thumb"]
+        download <- map["download"]
+    }
 }
-// class RecordListOptions: ListOptions, RecordOptions {
 
-// }
+public class AuthOptions: SendOptions {
+    
+}
 
-typealias OAuth2UrlCallback = (String) -> Void
+public typealias OAuth2UrlCallback = (String) -> Void
 
-class OAuth2AuthConfig: SendOptionsProtocol {
+public class OAuth2AuthConfig: Mappable, SendOptionsProtocol {
     
     var method = HTTPMethod.GET
-    var headers = [HeaderKey: HeaderValue]()
+    var headers = Headers()
     var body: Any?
 
     var provider: String!
@@ -290,6 +361,19 @@ class OAuth2AuthConfig: SendOptionsProtocol {
     var createData: [String: Any]?
     var urlCallback: OAuth2UrlCallback?
     
-    typealias QueryType = RecordOptions
+//    typealias QueryType = RecordOptions
     var query: RecordOptions?
+
+    public required init?(map: ObjectMapper.Map) {
+        
+    }
+    public func mapping(map: ObjectMapper.Map) {
+        method <- map["method"]
+        headers <- map["headers"]
+        body <- map["body"]
+        provider <- map["provider"]
+        scopes <- map["scopes"]
+        createData <- map["createData"]
+        query <- map["query"]
+    }
 }
